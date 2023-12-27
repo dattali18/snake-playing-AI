@@ -21,6 +21,7 @@ Point = namedtuple('Point', 'x, y')
 
 # rgb colors
 WHITE = (255, 255, 255)
+WHITE2 = (217, 217, 217)
 RED = (200, 0, 0)
 BLUE1 = (0, 0, 255)
 BLUE2 = (0, 100, 255)
@@ -29,7 +30,7 @@ GREEN1 = (9, 58, 6)
 GREEN2 = (31, 133, 28)
 
 BLOCK_SIZE = 20
-SPEED = 50
+SPEED = 60
 
 
 class SnakeGameAI:
@@ -112,6 +113,12 @@ class SnakeGameAI:
 
     def _update_ui(self):
         self.display.fill(BLACK)
+
+        # Draw white grid lines
+        for x in range(0, self.w, BLOCK_SIZE):
+            pygame.draw.line(self.display, WHITE2, (x, 0), (x, self.h))
+        for y in range(0, self.h, BLOCK_SIZE):
+            pygame.draw.line(self.display, WHITE2, (0, y), (self.w, y))
 
         for pt in self.snake:
             pygame.draw.rect(self.display, GREEN1, pygame.Rect(pt.x, pt.y, BLOCK_SIZE, BLOCK_SIZE))

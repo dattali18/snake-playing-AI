@@ -7,6 +7,8 @@ from model import Linear_QNet, QTrainer
 from helper import plot
 import json
 
+from game import BLOCK_SIZE
+
 MAX_MEMORY = 100_000
 BATCH_SIZE = 1000
 LR = 0.001
@@ -24,46 +26,78 @@ class Agent:
 
     def get_state(self, game):
         head = game.snake[0]
-        point_l = Point(head.x - 20, head.y)
-        point_r = Point(head.x + 20, head.y)
-        point_u = Point(head.x, head.y - 20)
-        point_d = Point(head.x, head.y + 20)
 
+        # Move direction
         dir_l = game.direction == Direction.LEFT
         dir_r = game.direction == Direction.RIGHT
         dir_u = game.direction == Direction.UP
         dir_d = game.direction == Direction.DOWN
 
+        dir_x = (dir_r - dir_l)
+        dir_y = (dir_u - dir_d)
+
+        # Calculate Manhattan distance to food
+        distance_to_food = abs(game.food.x - head.x) + abs(game.food.y - head.y)
+
+        # Direction to food
+        food_left = game.food.x < head.x
+        food_right = game.food.x > head.x
+        food_up = game.food.y < head.y
+        food_down = game.food.y > head.y
+
+        food_x = (food_left - food_right)
+        food_y = (food_up - food_down)
+
+        point_l = Point(head.x - 20, head.y)
+        point_r = Point(head.x + 20, head.y)
+        point_u = Point(head.x, head.y - 20)
+        point_d = Point(head.x, head.y + 20)
+
+        # Obstacle proximity indicators
+        obstacle_left = game.is_collision(Point(head.x - BLOCK_SIZE, head.y))
+        obstacle_right = game.is_collision(Point(head.x + BLOCK_SIZE, head.y))
+        obstacle_up = game.is_collision(Point(head.x, head.y - BLOCK_SIZE))
+        obstacle_down = game.is_collision(Point(head.x, head.y + BLOCK_SIZE))
+
+        # Body proximity indicators
+        body_left = any(Point(head.x - BLOCK_SIZE, head.y) == segment for segment in game.snake[1:])
+        body_right = any(Point(head.x + BLOCK_SIZE, head.y) == segment for segment in game.snake[1:])
+        body_up = any(Point(head.x, head.y - BLOCK_SIZE) == segment for segment in game.snake[1:])
+        body_down = any(Point(head.x, head.y + BLOCK_SIZE) == segment for segment in game.snake[1:])
+
+        danger_straight = ((dir_r and game.is_collision(point_r)) or
+                           (dir_l and game.is_collision(point_l)) or
+                           (dir_u and game.is_collision(point_u)) or
+                           (dir_d and game.is_collision(point_d)))
+        danger_right = ((dir_u and game.is_collision(point_r)) or
+                        (dir_d and game.is_collision(point_l)) or
+                        (dir_l and game.is_collision(point_u)) or
+                        (dir_r and game.is_collision(point_d)))
+        danger_left = ((dir_d and game.is_collision(point_r)) or
+                       (dir_u and game.is_collision(point_l)) or
+                       (dir_r and game.is_collision(point_u)) or
+                       (dir_l and game.is_collision(point_d)))
+
+        # Snake length
+        snake_length = len(game.snake)
+
         state = [
-            # Danger straight
-            (dir_r and game.is_collision(point_r)) or
-            (dir_l and game.is_collision(point_l)) or
-            (dir_u and game.is_collision(point_u)) or
-            (dir_d and game.is_collision(point_d)),
-
-            # Danger right
-            (dir_u and game.is_collision(point_r)) or
-            (dir_d and game.is_collision(point_l)) or
-            (dir_l and game.is_collision(point_u)) or
-            (dir_r and game.is_collision(point_d)),
-
-            # Danger left
-            (dir_d and game.is_collision(point_r)) or
-            (dir_u and game.is_collision(point_l)) or
-            (dir_r and game.is_collision(point_u)) or
-            (dir_l and game.is_collision(point_d)),
-
+            # Danger
+            danger_straight, danger_right, danger_left,
             # Move direction
-            dir_l,
-            dir_r,
-            dir_u,
-            dir_d,
-
-            # Food location
-            game.food.x < game.head.x,  # food left
-            game.food.x > game.head.x,  # food right
-            game.food.y < game.head.y,  # food up
-            game.food.y > game.head.y  # food down
+            dir_l, dir_r, dir_u, dir_d,
+            # dir_x, dir_y,
+            # Direction to food
+            # food_x, food_y,
+            food_left, food_right, food_up, food_down,
+            # Calculate Manhattan distance to food
+            # distance_to_food,
+            # Snake length
+            # snake_length,
+            # Body proximity indicators
+            # body_left, body_right, body_up, body_down,
+            # Obstacle proximity indicators
+            # obstacle_left, obstacle_right, obstacle_up, obstacle_down,
         ]
 
         return np.array(state, dtype=int)
@@ -106,7 +140,7 @@ def train(model_path=None):
     plot_mean_scores = []
     total_score = 0
     record = 0
-    gen_count = 0  # Initialize generation count
+
     agent = Agent()
 
     if model_path is not None:
@@ -139,29 +173,21 @@ def train(model_path=None):
 
             if score > record:
                 record = score
-                agent.model.save()
-
-            gen_count += 1  # Increment generation count
+                if model_path:
+                    agent.model.save(model_path)
+                else:
+                    agent.model.save()
 
             # Print to console
-            print('Generation:', gen_count, 'Game:', agent.n_games, 'Score:', score, 'Record:', record)
+            print('Game:', agent.n_games, 'Score:', score, 'Record:', record)
 
             mean_score = total_score / agent.n_games
-            # Write data to JSON file
-            data = {
-                "generation": gen_count,
-                "game": agent.n_games,
-                "score": score,
-                "record": record,
-                "mean_score": mean_score
-            }
 
             plot_scores.append(score)
             total_score += score
             mean_score = total_score / agent.n_games
             plot_mean_scores.append(mean_score)
             plot(plot_scores, plot_mean_scores)
-
 
 # if __name__ == '__main__':
 #     train()
