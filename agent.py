@@ -21,7 +21,7 @@ class Agent:
         self.epsilon = 0  # randomness
         self.gamma = 0.9  # discount rate
         self.memory = deque(maxlen=MAX_MEMORY)  # popleft()
-        self.model = Linear_QNet(11, 256, 3)
+        self.model = Linear_QNet(7, 256, 3)
         self.trainer = QTrainer(self.model, lr=LR, gamma=self.gamma)
 
     def get_state(self, game):
@@ -85,11 +85,11 @@ class Agent:
             # Danger
             danger_straight, danger_right, danger_left,
             # Move direction
-            dir_l, dir_r, dir_u, dir_d,
-            # dir_x, dir_y,
+            # dir_l, dir_r, dir_u, dir_d,
+            dir_x, dir_y,
             # Direction to food
-            # food_x, food_y,
-            food_left, food_right, food_up, food_down,
+            food_x, food_y,
+            # food_left, food_right, food_up, food_down,
             # Calculate Manhattan distance to food
             # distance_to_food,
             # Snake length
@@ -123,7 +123,8 @@ class Agent:
         # random moves: tradeoff exploration / exploitation
         self.epsilon = 80 - self.n_games
         final_move = [0, 0, 0]
-        if random.randint(0, 200) < self.epsilon:
+        # was 200
+        if random.randint(0, 150) < self.epsilon:
             move = random.randint(0, 2)
             final_move[move] = 1
         else:
@@ -131,6 +132,10 @@ class Agent:
             prediction = self.model(state0)
             move = torch.argmax(prediction).item()
             final_move[move] = 1
+        # state0 = torch.tensor(state, dtype=torch.float)
+        # prediction = self.model(state0)
+        # move = torch.argmax(prediction).item()
+        # final_move[move] = 1
 
         return final_move
 
@@ -147,6 +152,8 @@ def train(model_path=None):
         agent.model.load(model_path)
 
     game = SnakeGameAI()
+
+    file_name = input("Enter the name of the model trained on this game: ")
 
     while True:
         # get old state
@@ -173,10 +180,7 @@ def train(model_path=None):
 
             if score > record:
                 record = score
-                if model_path:
-                    agent.model.save(model_path)
-                else:
-                    agent.model.save()
+                agent.model.save(file_name)
 
             # Print to console
             print('Game:', agent.n_games, 'Score:', score, 'Record:', record)
@@ -188,9 +192,5 @@ def train(model_path=None):
             mean_score = total_score / agent.n_games
             plot_mean_scores.append(mean_score)
             plot(plot_scores, plot_mean_scores)
-        elif agent.n_games == 1000:
-            agent.model.save("model_1.pth")
-            exit(0)
 
-# if __name__ == '__main__':
-#     train()
+

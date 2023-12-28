@@ -30,7 +30,8 @@ GREEN1 = (9, 58, 6)
 GREEN2 = (31, 133, 28)
 
 BLOCK_SIZE = 20
-SPEED = 60
+SPEED = 150
+# SPEED = 10
 
 
 class SnakeGameAI:
